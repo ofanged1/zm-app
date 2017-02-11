@@ -1,12 +1,24 @@
 <VirtualHost *:80>
-        DocumentRoot /usr/share/zoneminder/www
-        DirectoryIndex index.php
+  DocumentRoot /usr/share/zoneminder/www
+  DirectoryIndex index.php
 
-        ScriptAlias /cgi-bin/ /usr/lib/zoneminder/cgi-bin
-        <Directory "/usr/lib/zoneminder/cgi-bin">
-                AllowOverride None
-                Options +ExecCGI -MultiViews +SymLinksIfOwnerMatch
-		require all granted
-        </Directory>
+  <Directory /usr/share/zoneminder/www>
+    Options Indexes FollowSymLinks
+    <IfModule mod_dir.c>
+      DirectoryIndex index.php
+    </IfModule>
+  </Directory>
 
+  <Directory /usr/share/zoneminder/www/api>
+      AllowOverride All
+  </Directory>
+
+  ScriptAlias /cgi-bin "/usr/lib/zoneminder/cgi-bin"
+  <Directory "/usr/lib/zoneminder/cgi-bin">
+    Options +ExecCGI -MultiViews +FollowSymLinks
+    SetHandler cgi-script
+    AllowOverride All
+    Require all granted
+  </Directory>
 </VirtualHost>
+

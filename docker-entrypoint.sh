@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Capture default or variables
+SHM=${SHM:-512M}
 LOCALHOSTS=( "127.0.0.1" "localhost" )
 ZM_DB_HOST=${ZM_DB_HOST:-"127.0.0.1"}
 ZM_DB_NAME=${ZM_DB_NAME:-"zm"}
@@ -102,12 +103,20 @@ SeedZoneMinder() {
 # Configure Apache, MySQL and Zoneminder itself
 ConfigureZoneMinder() {
 
-  echo -n "=> Configuring Zoneminder..."
+  echo "=> Configuring Zoneminder..."
 
-  # Enable Apache Modules
+  # Enable Apache Sites & Modules
+  a2dissite 000-default
+  a2disconf javascript-common
+  a2disconf other-vhosts-access-log
+  a2disconf serve-cgi-bin
+
+  #a2ensite zoneminder
   a2enconf zoneminder
-  a2enmod cgi
+  a2enmod mpm_prefork
   a2enmod rewrite
+  a2enmod php7.0
+  a2enmod cgi
 
   # Ensure the connection string is updated
   sed -i "s/ZM_DB_HOST=.*/ZM_DB_HOST=${ZM_DB_HOST}/" /etc/zm/zm.conf
@@ -115,28 +124,24 @@ ConfigureZoneMinder() {
   sed -i "s/ZM_DB_USER=.*/ZM_DB_USER=${ZM_DB_USER}/" /etc/zm/zm.conf
   sed -i "s/ZM_DB_PASS=.*/ZM_DB_PASS=${ZM_DB_PASS}/" /etc/zm/zm.conf
 
-  # Remove any potential path/sock map line and append a new one
-  #sed -i "/ZM_PATH_MAP=.*/d" /etc/zm/zm.conf
-  #echo "ZM_PATH_MAP=${ZM_TMP_PATH}" >> /etc/zm/zm.conf
-  sed -i "/ZM_SOCK_PATH=.*/d" /etc/zm/zm.conf
-  echo "ZM_SOCK_PATH=${ZM_SOCK_PATH}" >> /etc/zm/zm.conf
-  #sed -i "/ZM_LOGS_PATH=.*/d" /etc/zm/zm.conf
-  #echo "ZM_LOGS_PATH=${ZM_LOGS_PATH}" >> /etc/zm/zm.conf
+  mv /etc/zm/zm.conf /usr/share/zoneminder/
+  ln -s /usr/share/zoneminder/zm.conf /etc/zm/zm.conf
 
   # set permissions on zm config
-  chown root:www-data /etc/zm/zm.conf
-  chmod 740 /etc/zm/zm.conf
+  chown root:www-data /etc/zm/zm.conf /usr/share/zoneminder/zm.conf
+  chmod 740 /etc/zm/zm.conf /usr/share/zoneminder/zm.conf
   chown -R www-data:www-data \
     /var/log/zoneminder \
-    /usr/share/zoneminder/
+    /usr/share/zoneminder \
+    /var/cache/zoneminder \
+    /var/run/zm \
+    /tmp/zm
 
   # MySQL 5.7 fixes
   sed -i "/sql_mode.*/d" /etc/mysql/my.cnf
   echo "sql_mode = NO_ENGINE_SUBSTITUTION" >> /etc/mysql/my.cnf
   sed -i "s/#max_connections.*/max_connections        = 40/" /etc/mysql/my.cnf
   sed -i "s/tmpdir.*/tmpdir = \/dev\/shm/" /etc/mysql/my.cnf
-
-  echo "Done"
 
 }
 
@@ -161,10 +166,10 @@ else
 fi # end of local database setup
 
 # Run configuration when not been run
-if [ ! -f /opt/zm_configured ]; then
+if [ ! -f /usr/share/zoneminder/.zm.configured ]; then
 
   ConfigureZoneMinder
-  touch /opt/zm_configured
+  touch /usr/share/zoneminder/.zm.configured
 
 fi
 
@@ -173,8 +178,12 @@ if [ $(Privileged;echo $?) -eq 0 ]; then
 
   echo -n "=> Remounting tmpfs with 512M... "
   umount /dev/shm
-  mount -t tmpfs -o rw,nosuid,nodev,noexec,relatime,size=512M tmpfs /dev/shm
+  mount -t tmpfs -o rw,nosuid,nodev,noexec,relatime,size=${SHM} tmpfs /dev/shm
   echo "Done"
+
+else
+
+  echo "=> Skipping tmpfs remount at ${SHM} due to lack of permissions, use \"--privileged\" option when running container"
 
 fi
 

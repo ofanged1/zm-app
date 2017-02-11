@@ -36,15 +36,14 @@ WORKDIR /opt/src
 ADD docker-entrypoint.sh /docker-entrypoint.sh
 
 RUN chmod +x /docker-entrypoint.sh \
+  && mkdir -p /tmp/zm \
+  && mkdir -p /var/run/zm \
   && mkdir -p /var/run/mysqld \
   && mkdir -p /var/log/zoneminder \
   && chown mysql:mysql /var/run/mysqld \
   && cp -f /etc/mysql/mysql.conf.d/mysqld.cnf /etc/mysql/my.cnf \
   && ln -sf /opt/src/config/supervisord.conf /etc/supervisor/supervisord.conf \
-  && ln -sf /opt/src/config/apache-vhost /etc/apache2/sites-enabled/000-default.conf \
-  && ln -sf /opt/src/config/phpdate.ini /etc/php/7.0/apache2/conf.d/25-phpdate.ini \
-  && mv /etc/zm/zm.conf /usr/share/zoneminder/ \
-  && ln -s /usr/share/zoneminder/zm.conf /etc/zm/zm.conf
+  && ln -sf /opt/src/config/phpdate.ini /etc/php/7.0/apache2/conf.d/25-phpdate.ini
 
 VOLUME ["/var/lib/mysql", "/usr/share/zoneminder"]
 
