@@ -1,4 +1,4 @@
-FROM ubuntu:latest
+FROM armv7/armhf-ubuntu
 MAINTAINER Frank DiRocco <frank2@diroccos.com>
 
 EXPOSE 80
